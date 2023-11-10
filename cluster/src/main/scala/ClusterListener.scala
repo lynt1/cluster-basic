@@ -1,5 +1,6 @@
 
 
+import Other.OtherCommand
 import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 import akka.actor.typed.scaladsl.Behaviors
 import akka.cluster.ClusterEvent
@@ -79,8 +80,15 @@ object Main extends App{
   }
 
   val portSender = 2551
-  val portReceiver = 0
-  val configSender = ConfigFactory.parseString(
+  val portReceiver = 2553
+  val portOther = 2552
+  val configs = List(portSender, portOther, portReceiver).map{port =>
+    ConfigFactory.parseString(
+      s"""
+    akka.remote.artery.canonical.port=$port
+    """).withFallback(ConfigFactory.load("application.conf"))
+  }
+/*  val configSender = ConfigFactory.parseString(
     s"""
   akka.remote.artery.canonical.port=$portSender
   """).withFallback(ConfigFactory.load("application.conf"))
@@ -88,8 +96,9 @@ object Main extends App{
   val configReceiver = ConfigFactory.parseString(
     s"""
       akka.remote.artery.canonical.port=$portReceiver
-      """).withFallback(ConfigFactory.load("application.conf"))
+      """).withFallback(ConfigFactory.load("application.conf"))*/
 
-  ActorSystem[SenderCommand](Sender.apply, "ClusterSystem", configSender)
-  ActorSystem[ReceiverCommand](Receiver.apply, "ClusterSystem", configReceiver)
+  ActorSystem[SenderCommand](Sender.apply, "ClusterSystem", configs.head)
+  ActorSystem[ReceiverCommand](Receiver.apply, "ClusterSystem", configs.reverse.head)
+  ActorSystem[OtherCommand](Other.apply, "ClusterSystem", configs.drop(1).head)
 }
